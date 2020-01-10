@@ -24,6 +24,7 @@ dependencies:
 - foldl
 - regex-applicative
 - containers
+- semigroupoids
 
 library:
   source-dirs: src
