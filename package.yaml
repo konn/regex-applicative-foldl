@@ -1,0 +1,42 @@
+name:                regex-applicative-foldl
+version:             0.1.0.0
+github:              "konn/regex-applicative-foldl"
+license:             BSD3
+author:              "Hiromi ISHII"
+maintainer:          "konn.jinro_at_gmail.com"
+copyright:           "2020 (c) Hiromi ISHII"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+synopsis:            A utility package to use <https://hackage.haskell.org/package/regex-applicative regex-applicative> package with <https://hackage.haskell.org/package/foldl foldl>.
+category:            Regular Expression,Text,Data Structure,Folding
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         This package provides a bridge interface for regex-applicative package to match against arbitrary foldable structures using foldl package.
+
+dependencies:
+- base >= 4.7 && < 5
+- foldl
+- regex-applicative
+- containers
+
+library:
+  source-dirs: src
+ghc-options:
+- -Wall
+
+tests:
+  regex-applicative-foldl-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - regex-applicative-foldl
