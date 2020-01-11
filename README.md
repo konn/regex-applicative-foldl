@@ -40,10 +40,8 @@ ghci> L.fold (exactMatch $ many $ sym 'c') "ccc"
 True
 ghci> L.fold (exactMatch $ many $ sym 'c') "ccca"
 False
-ghci> L.fold (matchAll Greedy $ many $ sym 'c') "abccc"
+ghci> L.fold (matchAll $ many $ sym 'c') "abccc"
 ["", "", "ccc"]
-ghci> L.fold (matchAll NonGreedy $ many $ sym 'c') "abccc"
-["", "", "", "c", "", "c", "", "c", ""]
 ```
 
 ### Matching against non-list containers
@@ -53,9 +51,9 @@ ghci> import qualified Data.Text as T
 ghci> import Data.Text.Lens         -- from @lens@ package.
 ghci> decimal = read <$> some (psym $ \c -> '0' <= c && c <= '9') :: RE Char Int
 ghci> input = T.pack "123abc4abc9999abc0000000" :: T.Text
-ghci> L.foldOver text (maximumMatch Greedy decimal) input
+ghci> L.foldOver text (maximumMatch decimal) input
 Just 9999
-ghci> L.foldOver text (minimumMatch Greedy decimal) input
+ghci> L.foldOver text (minimumMatch decimal) input
 Just 0
 ghci> L.foldOver text (longestInfix decimal) input
 Just 0
