@@ -1,22 +1,19 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, DeriveFunctor #-}
 module Text.Regex.Applicative.Foldl
   ( exactMatch, exactMatchE,
     matchAll,
     maximumMatch, minimumMatch,
     longestInfix, shortestInfix,
-    matchAllGreedy, matchAllNonGreedy,
     module Text.Regex.Applicative
   ) where
 import           Control.Arrow
 import           Control.Foldl                 (Fold (..), FoldM (..))
 import qualified Control.Foldl                 as L
 import           Data.Coerce
-import           Data.Foldable
 import           Data.Function
 import           Data.Maybe
 import           Data.Ord
 import           Data.Semigroupoid
-import qualified Data.Sequence                 as Seq
 import           Data.Tuple
 import           Text.Regex.Applicative
 import           Text.Regex.Applicative.Object
@@ -46,39 +43,26 @@ exactMatchE re = FoldM go (Right $ compile re) (Right . listToMaybe . results)
 data P a b = P { getFst :: !a, getSnd :: !b }
   deriving (Read, Show, Eq, Ord)
 
-matchAllNonGreedy :: RE c a -> Fold c [a]
-matchAllNonGreedy re = Fold go (P iniMS obj0) (toList . getFst)
-  where
-    obj0 = compile re
-    iniMS = maybe Seq.empty Seq.singleton $ listToMaybe $ results obj0
-    go (P ms obj) !c
-      | failed obj' = P (ms <> iniMS) obj0
-      | not (null res) = P (ms <> Seq.singleton (head res) <> iniMS) obj0
-      | otherwise = P ms obj'
-      where
-        obj' = step c obj
-        res = results obj'
-
 -- | Finds the /maximum/ matching result w.r.t. the ordering on @a@.
 --
 --   This exploits the 'Semigroupod' structure of 'Fold's:
 --
 -- @
--- 'maximumMatch' g re = 'L.handles' 'L.folded' 'L.maximum' \``o`\` 'matchAll' g re
+-- 'maximumMatch' re = 'L.handles' 'L.folded' 'L.maximum' \``o`\` 'matchAll' re
 -- @
 --
 --  /c.f./ 'minimumMatch', 'longestInfix' and 'matchAll'.
-maximumMatch :: Ord a => Greediness -> RE c a -> Fold c (Maybe a)
-maximumMatch g re =
+maximumMatch :: Ord a => RE c a -> Fold c (Maybe a)
+maximumMatch re =
   L.handles L.folded L.maximum
     `o`
-  matchAll g re
+  matchAll re
 
 -- | Find the /minimum/ matching result w.r.t. the ordering on @a@.
 --
 --  /c.f./ 'maximumMatch', 'longestInfix' and 'matchAll'.
-minimumMatch :: Ord a => Greediness -> RE c a -> Fold c (Maybe a)
-minimumMatch g re = coerce $ maximumMatch g (Down <$> re)
+minimumMatch :: Ord a => RE c a -> Fold c (Maybe a)
+minimumMatch re = coerce $ maximumMatch (Down <$> re)
 
 -- | Finds a value of left-most longest infix.
 --
@@ -87,7 +71,7 @@ longestInfix
   :: RE c a -> Fold c (Maybe a)
 longestInfix re =
   fmap payload <$>
-  maximumMatch Greedy
+  maximumMatch
     (uncurry Weighted . first length . swap <$> withMatched re)
 
 -- | Finds a value of left-most shortest infix.
@@ -97,7 +81,7 @@ shortestInfix
   :: RE c a -> Fold c (Maybe a)
 shortestInfix re =
   fmap payload <$>
-  minimumMatch NonGreedy
+  minimumMatch
     (uncurry Weighted . first length . swap <$> withMatched re)
 
 data Weighted w a = Weighted { weight :: !w, payload :: !a }
@@ -110,37 +94,24 @@ instance Eq w => Eq (Weighted w a) where
 instance Ord w => Ord (Weighted w a) where
   compare = comparing weight
 
-matchAllGreedy :: RE c a -> Fold c [a]
-matchAllGreedy re = Fold go (P3 Seq.empty iniRes obj0) ext
-  where
-    ext (P3 ms prev _) = toList $ ms <> maybeSeq' prev
-    obj0 = compile re
-    iniRes = result' obj0
-    go (P3 ms prev obj) !c
-      | failed obj' =
-        let obj'' = step c obj0
-            ms' = ms <> maybeSeq' prev
-            next | failed obj'' = obj0
-                 | otherwise    = obj''
-        in P3 ms' (result' next) next
-      | otherwise = P3 ms (result' obj') obj'
-      where
-        !obj' = step c obj
-
-maybeSeq' :: Maybe' a -> Seq.Seq a
-maybeSeq' (Just' a) = Seq.singleton a
-maybeSeq' Nothing'  = Seq.empty
-
-result' :: ReObject s a -> Maybe' a
-result' = toMaybe' . listToMaybe . results
 
 data P3 a b c = P3 !a !b !c
+  deriving (Read, Show, Eq, Ord)
 
 data Maybe' a = Nothing' | Just' !a
+  deriving (Read, Show, Eq, Ord, Functor)
 
-toMaybe' :: Maybe a -> Maybe' a
-toMaybe' (Just a) = Just' a
-toMaybe' Nothing  = Nothing'
+instance Applicative Maybe' where
+  pure = Just'
+  Nothing' <*> (!_)   = Nothing'
+  (!_) <*> Nothing'   = Nothing'
+  Just' f <*> Just' a = Just' (f a)
+
+instance Alternative Maybe' where
+  empty = Nothing'
+  Nothing' <|> (!m) = m
+  (!m) <|> Nothing' = m
+  l@Just'{} <|> (!_)  = l
 
 {- | Extract all matching subsequence in fold.
 
@@ -148,13 +119,10 @@ __N.B.__ Unlike 'Text.Regex.Applicative.replace',
 if the given regex matches empty string,
 each empty string position matches /exactly once/.
 
->>> fold (matchAll NonGreedy (optional $ sym 'c')) "abccc"
-[Nothing,Nothing,Nothing,Just 'c',Nothing,Just 'c',Nothing,Just 'c',Nothing]
-
->>> fold (matchAll Greedy (many $ sym 'c')) "abccc"
+>>> fold (matchAll (many $ sym 'c')) "abccc"
 ["", "", "ccc"]
 -}
-matchAll :: Greediness -> RE c a -> Fold c [a]
+matchAll :: RE c a -> Fold c [a]
 {-# INLINE matchAll #-}
-matchAll Greedy    = matchAllGreedy
-matchAll NonGreedy = matchAllNonGreedy
+matchAll re =
+  fromMaybe [] <$> exactMatch (few anySym *> many (re <* few anySym))
