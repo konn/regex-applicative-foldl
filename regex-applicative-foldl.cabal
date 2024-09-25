@@ -1,0 +1,72 @@
+cabal-version: 3.0
+name: regex-applicative-foldl
+version: 0.1.0.0
+synopsis: A utility package to use <https://hackage.haskell.org/package/regex-applicative regex-applicative> package with <https://hackage.haskell.org/package/foldl foldl>.
+description: This package provides a bridge interface for regex-applicative package to match against arbitrary foldable structures using foldl package.
+category: Regular Expression,Text,Data Structure,Folding
+homepage: https://github.com/konn/regex-applicative-foldl#readme
+bug-reports: https://github.com/konn/regex-applicative-foldl/issues
+author: Hiromi ISHII
+maintainer: konn.jinro_at_gmail.com
+copyright: 2020 (c) Hiromi ISHII
+license: BSD-3-Clause
+license-file: LICENSE
+build-type: Simple
+extra-doc-files:
+  ChangeLog.md
+  README.md
+
+source-repository head
+  type: git
+  location: https://github.com/konn/regex-applicative-foldl
+
+common defaults
+  other-modules: Paths_regex_applicative_foldl
+  autogen-modules: Paths_regex_applicative_foldl
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wmissing-export-lists
+    -Wmissing-home-modules
+    -Wpartial-fields
+    -Wredundant-constraints
+    -Wunused-packages
+
+  default-language: GHC2021
+  build-depends: base >=4.7 && <5
+
+library
+  import: defaults
+  -- cabal-gild: discover src
+  exposed-modules: Text.Regex.Applicative.Foldl
+  hs-source-dirs: src
+  ghc-options: -Wall
+  build-depends:
+    base >=4.7 && <5,
+    foldl,
+    regex-applicative,
+    semigroupoids,
+
+test-suite regex-applicative-foldl-test
+  import: defaults
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  -- cabal-gild: discover test --exclude test/Spec.hs
+  other-modules:
+  hs-source-dirs: test
+  ghc-options:
+    -Wall
+    -threaded
+    -rtsopts
+    -with-rtsopts=-N
+
+  build-depends:
+    base >=4.7 && <5,
+    containers,
+    foldl,
+    regex-applicative,
+    regex-applicative-foldl,
+    semigroupoids,
